@@ -2,6 +2,17 @@
 
 All notable changes follow [Semantic Versioning](https://semver.org/).
 
+## [1.0.1] - 2026-10-05
+
+### Fixed
+- Photos never finished: on the review page of photographs the detail/colour box has no widget name,
+  so the page was not recognised and the run waited until the 300 s timeout. The review page is now
+  detected by its buttons only, and the detail/colour buttons are found by width.
+- A click could be sent twice when Vector Magic was slow to start processing (large images). A click now
+  counts as taken as soon as the page changes, and is only retried after 12 s without any change.
+- Random "Unexpected dialog at startup" (about 1 run in 12): the transient image-load window is no longer
+  treated as a dialog; only windows that stay for 5 s are.
+
 ## [1.0.0] - 2026-10-05
 
 ### Added

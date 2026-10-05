@@ -148,27 +148,32 @@ function Get-Page($win) {
   $custom = @(Find-Named $p 'custom_groupbox').Count
   # Signatures measured on v1.15:
   #   start  : wizard_button_0/1/2 (Fully automatic / Basic / Advanced)
-  #   review : custom_groupbox (detail/colours) + wizard_button_0 (Review done), no toggle groups
+  #   review : wizard_button_0 (Review done) only, no toggle groups. The detail/colour box is named
+  #            custom_groupbox for artwork but is unnamed for photos, so it is not part of the signature.
   #   export : >= 3 toggle_groupbox (Quick save / Bitmap export / Export options) + wizard_button_1 (Save as)
   if ($toggles -ge 3) { return 'export' }
-  if ($custom -ge 1 -and $wb0 -eq 1 -and $toggles -eq 0) { return 'review' }
+  if ($wb0 -eq 1 -and $wb1 -eq 0 -and $wb2 -eq 0 -and $toggles -eq 0) { return 'review' }
   if ($wb0 -eq 1 -and $wb1 -eq 1 -and $wb2 -eq 1) { return 'start' }
   $wb = $wb0 + $wb1 + $wb2
   return "other(wb=$wb,toggles=$toggles,custom=$custom)"
 }
-# Run $action, then wait for one of $want pages. If the page has not changed (nor started
-# processing) after $retryAfterSec, the click was probably swallowed: retry it.
-function Invoke-Step($procId, [scriptblock]$action, [string[]]$want, [int]$timeoutSec, [switch]$RequireBusy, [int]$retries = 3, [int]$retryAfterSec = 6) {
+# Run $action, then wait for one of $want pages. The click counts as taken once the page differs
+# from the one before the click (or processing starts); only then is it safe not to click again.
+# If nothing changes after $retryAfterSec the click was probably swallowed: retry it.
+function Invoke-Step($procId, [scriptblock]$action, [string[]]$want, [int]$timeoutSec, [switch]$RequireBusy, [int]$retries = 3, [int]$retryAfterSec = 12) {
   for ($i = 1; $i -le $retries; $i++) {
-    & $action (Get-MainWindow $procId)
+    $w0 = Get-MainWindow $procId
+    $before = Get-Page $w0
+    & $action $w0
     $deadline = (Get-Date).AddSeconds($retryAfterSec)
     while ((Get-Date) -lt $deadline) {
       Assert-NoDialog $procId
       $win = Get-MainWindow $procId
       if ($win) {
         $pg = Get-Page $win
-        if (-not $RequireBusy -and $want -contains $pg) { Log "page=$pg"; return $win }
-        if ($pg -eq 'busy') { Log 'page=busy'; return Wait-Page $procId $want $timeoutSec }
+        if (-not $RequireBusy -and $want -contains $pg -and $pg -ne $before) { Log "page=$pg"; return $win }
+        $changed = ($pg -eq 'busy') -or ($pg -ne $before -and $pg -ne 'unknown' -and -not $RequireBusy)
+        if ($changed) { Log "page=$pg (click taken)"; return Wait-Page $procId $want $timeoutSec }
       }
       Start-Sleep -Milliseconds 400
     }
@@ -181,10 +186,26 @@ function Invoke-Step($procId, [scriptblock]$action, [string[]]$want, [int]$timeo
   }
   throw "Timeout waiting for page [$($want -join ',')] after $retries clicks"
 }
+# Vector Magic briefly shows extra top-level windows (e.g. the image-load progress window, a QWidget
+# titled "vmde"). Only a window that stays for $DIALOG_GRACE_SEC is treated as a blocking dialog.
+$DIALOG_GRACE_SEC = 5
+$script:dialogSeen = @{}
+function Get-BlockingDialog($procId) {
+  $now = Get-Date
+  $current = @{}
+  foreach ($d in (Get-OtherWindows $procId | Where-Object { $_.Current.ClassName -ne 'QPopup' })) {
+    $h = [string]$d.Current.NativeWindowHandle
+    $current[$h] = $true
+    if (-not $script:dialogSeen.ContainsKey($h)) { $script:dialogSeen[$h] = $now; Log "transient window [$($d.Current.Name)] class=$($d.Current.ClassName)" }
+    elseif (($now - $script:dialogSeen[$h]).TotalSeconds -ge $DIALOG_GRACE_SEC) { return $d }
+  }
+  foreach ($k in @($script:dialogSeen.Keys)) { if (-not $current.ContainsKey($k)) { $script:dialogSeen.Remove($k) } }
+  return $null
+}
 function Assert-NoDialog($procId) {
   if (-not (Get-Process -Id $procId -ErrorAction SilentlyContinue)) { throw 'Vector Magic exited unexpectedly.' }
-  $dlg = Get-OtherWindows $procId | Where-Object { $_.Current.ClassName -ne 'QPopup' }
-  if ($dlg.Count -gt 0) { throw "Unexpected dialog: [$($dlg[0].Current.Name)] class=$($dlg[0].Current.ClassName)" }
+  $dlg = Get-BlockingDialog $procId
+  if ($dlg) { throw "Unexpected dialog: [$($dlg.Current.Name)] class=$($dlg.Current.ClassName)" }
 }
 function Wait-Page($procId, [string[]]$want, [int]$timeoutSec) {
   $deadline = (Get-Date).AddSeconds($timeoutSec)
@@ -200,6 +221,11 @@ function Wait-Page($procId, [string[]]$want, [int]$timeoutSec) {
     Start-Sleep -Milliseconds 400
   }
   throw "Timeout waiting for page [$($want -join ',')] (last=$last)"
+}
+# Review page buttons by width (v1.15): detail Alto/Medio/Bajo ~58 px, colours ~140 px.
+function Get-ReviewButtons($win, [int]$minW, [int]$maxW) {
+  $page = (Find-Named $win 'wizard_page')[0]
+  @(Get-GroupButtons $page | Where-Object { $r = $_.Current.BoundingRectangle; $r.Width -ge $minW -and $r.Width -le $maxW })
 }
 # Buttons inside a groupbox sorted top->bottom
 function Get-GroupButtons($groupbox) {

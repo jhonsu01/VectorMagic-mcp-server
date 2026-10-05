@@ -42,6 +42,7 @@ const batch = parse(await client.callTool({
   arguments: { input_dir: samples, output_dir: join(out, 'batch'), format: 'eps', shape_mode: 'adjoining_grouped' },
 }));
 check(batch.total === 4 && batch.succeeded === 4, `vectorize_batch: ${batch.succeeded}/${batch.total} EPS`);
+for (const r of batch.results.filter((x) => !x.success)) console.log(`      ${r.input_path}: ${r.error}\n      ${(r.log ?? []).join('\n      ')}`);
 
 const bad = parse(await client.callTool({ name: 'vectorize_image', arguments: { input_path: join(samples, 'readme.txt') } }));
 check(!bad.success && /Unsupported input/.test(bad.error), 'rejects unsupported input');

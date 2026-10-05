@@ -61,9 +61,9 @@ try {
   while ((Get-Date) -lt $deadline) {
     $win = Get-MainWindow $procId
     if ($win -and $win.Current.Name -like "*$base*") { break }
-    $other = Get-OtherWindows $procId | Where-Object { $_.Current.ClassName -ne 'QPopup' }
-    if ($other.Count -gt 0) { throw "Unexpected dialog at startup: [$($other[0].Current.Name)] class=$($other[0].Current.ClassName)" }
     if (-not (Get-Process -Id $procId -ErrorAction SilentlyContinue)) { throw 'Vector Magic exited during startup.' }
+    $dlg = Get-BlockingDialog $procId
+    if ($dlg) { throw "Unexpected dialog at startup: [$($dlg.Current.Name)] class=$($dlg.Current.ClassName)" }
     $win = $null
     Start-Sleep -Milliseconds 400
   }
@@ -75,9 +75,6 @@ try {
   $win = Invoke-Step $procId { param($w) Click-FullyAutomatic $w } @('review') ([int]$params.vectorizeTimeoutSec)
 
   # Review page tweaks: detail level and colours re-run the vectorization.
-  $cg = (Find-Named $win 'custom_groupbox')[0]
-  $btns = Get-GroupButtons $cg
-  Log "review buttons=$($btns.Count)"
   $groups = @{}
   # Group buttons by sub-block (detail = 3 stacked narrow buttons; colours = 2 stacked)
   $status = Read-StatusBar $win
@@ -87,8 +84,7 @@ try {
     else {
       $ok = $false
       for ($try = 1; $try -le 3 -and -not $ok; $try++) {
-        $cg = (Find-Named $win 'custom_groupbox')[0]
-        $detailBtns = @(Get-GroupButtons $cg | Where-Object { $_.Current.BoundingRectangle.Width -lt 100 } | Select-Object -First 3)
+        $detailBtns = @(Get-ReviewButtons $win 50 70 | Select-Object -First 3)
         if ($detailBtns.Count -ne 3) { throw "Detail buttons not found ($($detailBtns.Count))." }
         $idx = @{ high = 0; medium = 1; low = 2 }[$params.detail]
         $win = Invoke-Step $procId { param($w) Click-Element $w $detailBtns[$idx] "detail=$($params.detail)" } @('review') ([int]$params.vectorizeTimeoutSec) -RequireBusy
@@ -103,8 +99,7 @@ try {
     }
   }
   if ($params.colors -eq 'unlimited') {
-    $cg = (Find-Named $win 'custom_groupbox')[0]
-    $colorBtns = @(Get-GroupButtons $cg | Where-Object { $r = $_.Current.BoundingRectangle; $r.Width -ge 100 -and $r.Width -le 200 } | Select-Object -First 2)
+    $colorBtns = @(Get-ReviewButtons $win 120 160 | Select-Object -First 2)
     if ($colorBtns.Count -lt 1) { throw 'Colour buttons not found.' }
     $win = Invoke-Step $procId { param($w) Click-Element $w $colorBtns[0] 'colors=unlimited' } @('review') ([int]$params.vectorizeTimeoutSec) -RequireBusy
     Start-Sleep -Milliseconds 500
@@ -152,8 +147,8 @@ try {
   $deadline = (Get-Date).AddSeconds([int]$params.saveTimeoutSec)
   $outFile = $null
   while ((Get-Date) -lt $deadline) {
-    $dlg = Get-OtherWindows $procId | Where-Object { $_.Current.ClassName -ne 'QPopup' }
-    if ($dlg.Count -gt 0) { throw "Unexpected dialog while saving: [$($dlg[0].Current.Name)]" }
+    $dlg = Get-BlockingDialog $procId
+    if ($dlg) { throw "Unexpected dialog while saving: [$($dlg.Current.Name)]" }
     $new = @(Get-ChildItem -LiteralPath $workDir -File | Where-Object { $before -notcontains $_.Name })
     if ($new.Count -gt 0) {
       $f = $new[0]
