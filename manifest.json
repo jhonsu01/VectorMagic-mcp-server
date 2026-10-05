@@ -1,0 +1,51 @@
+{
+  "manifest_version": "0.3",
+  "name": "vectormagic-mcp-server",
+  "version": "1.0.0",
+  "display_name": "Vector Magic Bridge",
+  "description": "Vectorize any bitmap into editable SVG, AI, EPS, PDF, DXF or EMF with Vector Magic Desktop Edition on Windows. Not affiliated with Vector Magic, Inc.",
+  "long_description": "Vector Magic Bridge lets Claude drive the Vector Magic Desktop Edition you already have installed on Windows (tested with 1.15).\n\n- **Vectorize** PNG, JPG, GIF, BMP, TIFF, PSD, TGA, PCX, JP2, XPM and more.\n- **Export** editable SVG, AI, EPS, PDF, DXF or EMF, or re-render PNG/JPG/BMP/TIF at 1x, 2x or 4x.\n- **Tune** level of detail, colour mode, shape layering, strokes and DXF curve mode.\n- **Batch** whole folders, and get a preview plus a summary of what Vector Magic detected.\n\nVector Magic has no command line, so the connector starts its own off-screen Vector Magic window and drives it; windows you have open are never touched, and your Vector Magic settings are restored after every run. Everything runs locally with no network access. Requires a licensed copy of Vector Magic Desktop Edition. Not affiliated with or endorsed by Vector Magic, Inc.",
+  "author": {
+    "name": "Jhon Supelano",
+    "url": "https://github.com/jhonsu01"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jhonsu01/VectorMagic-mcp-server.git"
+  },
+  "homepage": "https://github.com/jhonsu01/VectorMagic-mcp-server",
+  "support": "https://github.com/jhonsu01/VectorMagic-mcp-server/issues",
+  "icon": "icon.png",
+  "server": {
+    "type": "node",
+    "entry_point": "dist/bundle.cjs",
+    "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/dist/bundle.cjs"],
+      "env": {
+        "VECTOR_MAGIC_EXE": "${user_config.vector_magic_exe}"
+      }
+    }
+  },
+  "user_config": {
+    "vector_magic_exe": {
+      "type": "file",
+      "title": "Vector Magic executable (vmde.exe)",
+      "description": "Full path of vmde.exe. Leave empty to use the default install folder (C:\\Program Files (x86)\\Vector Magic).",
+      "required": false
+    }
+  },
+  "compatibility": {
+    "platforms": ["win32"],
+    "runtimes": {
+      "node": ">=20.0.0"
+    }
+  },
+  "tools": [
+    { "name": "vectorize_image", "description": "Vectorize one image into SVG, AI, EPS, PDF, DXF or EMF (or re-rendered PNG/JPG/BMP/TIF) with a preview" },
+    { "name": "vectorize_batch", "description": "Vectorize a list of images or a whole folder with the same options" },
+    { "name": "get_vector_magic_status", "description": "Check the Vector Magic installation, version and supported formats" }
+  ],
+  "keywords": ["vector-magic", "vectorize", "vectorization", "image-tracing", "bitmap-to-vector", "svg", "eps", "dxf", "ai", "logo", "windows"],
+  "license": "MIT"
+}

@@ -1,0 +1,54 @@
+{
+  "name": "vectormagic-mcp-server",
+  "version": "1.0.0",
+  "description": "MCP server for Vector Magic Desktop Edition (Windows) — vectorize any bitmap into editable SVG, AI, EPS, PDF, DXF or EMF from Claude.",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "vectormagic-mcp-server": "dist/index.js"
+  },
+  "files": [
+    "dist/**/*"
+  ],
+  "scripts": {
+    "build": "tsc && node scripts/copy-ps.mjs && node scripts/bundle.mjs",
+    "start": "node dist/index.js",
+    "test": "vitest run",
+    "test:e2e": "node scripts/e2e.mjs",
+    "pack:mcpb": "npm run build && npm ci --omit=dev && npx -y @anthropic-ai/mcpb pack . vectormagic-mcp-server.mcpb && npm install"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "vector-magic",
+    "vectorize",
+    "vectorization",
+    "image-tracing",
+    "bitmap-to-vector",
+    "svg",
+    "eps",
+    "dxf",
+    "windows"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jhonsu01/VectorMagic-mcp-server.git"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "os": [
+    "win32"
+  ],
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "esbuild": "^0.28.2",
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.3"
+  }
+}

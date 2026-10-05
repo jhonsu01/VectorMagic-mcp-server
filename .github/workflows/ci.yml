@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    # Vector Magic itself is not available on CI runners: this covers build, unit tests and packaging.
+    # The real end-to-end test (npm run test:e2e) runs locally on a PC with Vector Magic installed.
+    strategy:
+      matrix:
+        node-version: [20, 22]
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npm test
+      - name: Validate and pack .mcpb
+        if: matrix.node-version == 22
+        run: |
+          npx -y @anthropic-ai/mcpb validate manifest.json
+          npm ci --omit=dev
+          npx -y @anthropic-ai/mcpb pack . vectormagic-mcp-server.mcpb
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: matrix.node-version == 22
+        with:
+          name: vectormagic-mcp-server.mcpb
+          path: vectormagic-mcp-server.mcpb

@@ -1,0 +1,22 @@
+# Sources (dist/ holds the bundle and the PowerShell engine)
+src/
+test/
+scripts/
+
+# Runtime does not need node_modules: dist/bundle.cjs is self-contained
+node_modules/
+
+# Dev tooling / docs
+.github/
+.tmp/
+docs/
+tsconfig.json
+vitest.config.ts
+README*.md
+CHANGELOG.md
+*.mcpb
+.git/
+.gitignore
+.mcpbignore
+dist/**/*.map
+dist/**/*.js
